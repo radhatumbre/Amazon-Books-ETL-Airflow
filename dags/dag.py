@@ -1,10 +1,7 @@
-
-#dag - directed acyclic graph
-
-#tasks : 1) fetch amazon data (extract) 2) clean data (transform) 3) create and store data in table on postgres (load)
-#operators : Python Operator and PostgresOperator
-#hooks - allows connection to postgres
-#dependencies
+#tasks : 
+# 1) fetch amazon data (extract) 
+# 2) clean data (transform) 
+# 3) create and store data in table on postgres (load)
 
 from datetime import datetime, timedelta
 from airflow import DAG
@@ -27,29 +24,22 @@ headers = {
 
 
 def get_amazon_data_books(num_books, ti):
-    # Base URL of the Amazon search results for data science books
     base_url = f"https://www.amazon.com/s?k=data+engineering+books"
 
     books = []
-    seen_titles = set()  # To keep track of seen titles
+    seen_titles = set()  
 
     page = 1
 
     while len(books) < num_books:
         url = f"{base_url}&page={page}"
-        
-        # Send a request to the URL
         response = requests.get(url, headers=headers)
         
         # Check if the request was successful
         if response.status_code == 200:
-            # Parse the content of the request with BeautifulSoup
             soup = BeautifulSoup(response.content, "html.parser")
-            
-            # Find book containers (you may need to adjust the class names based on the actual HTML structure)
             book_containers = soup.find_all("div", {"class": "s-result-item"})
-            
-            # Loop through the book containers and extract data
+
             for book in book_containers:
                 title = book.find("span", {"class": "a-text-normal"})
                 author = book.find("a", {"class": "a-size-base"})
@@ -59,7 +49,6 @@ def get_amazon_data_books(num_books, ti):
                 if title and author and price and rating:
                     book_title = title.text.strip()
                     
-                    # Check if title has been seen before
                     if book_title not in seen_titles:
                         seen_titles.add(book_title)
                         books.append({
@@ -69,26 +58,19 @@ def get_amazon_data_books(num_books, ti):
                             "Rating": rating.text.strip(),
                         })
             
-            # Increment the page number for the next iteration
             page += 1
         else:
             print("Failed to retrieve the page")
             break
 
-    # Limit to the requested number of books
     books = books[:num_books]
-    
-    # Convert the list of dictionaries into a DataFrame
     df = pd.DataFrame(books)
-    
-    # Remove duplicates based on 'Title' column
     df.drop_duplicates(subset="Title", inplace=True)
     
-    # Push the DataFrame to XCom
     ti.xcom_push(key='book_data', value=df.to_dict('records'))
 
+
 #3) create and store data in table on postgres (load)
-    
 def insert_book_data_into_postgres(ti):
     book_data = ti.xcom_pull(key='book_data', task_ids='fetch_book_data')
     if not book_data:
@@ -117,10 +99,6 @@ dag = DAG(
     description='A simple DAG to fetch book data from Amazon and store it in Postgres',
     schedule_interval="@daily",
 )
-
-#operators : Python Operator and PostgresOperator
-#hooks - allows connection to postgres
-
 
 fetch_book_data_task = PythonOperator(
     task_id='fetch_book_data',
@@ -151,5 +129,4 @@ insert_book_data_task = PythonOperator(
 )
 
 #dependencies
-
 fetch_book_data_task >> create_table_task >> insert_book_data_task
