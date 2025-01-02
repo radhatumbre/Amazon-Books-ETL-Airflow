@@ -6,3 +6,8 @@ This project implements an **ETL (Extract, Transform, Load)** pipeline using **A
 - **Data Extraction**: Scrapes Amazon for data engineering books.
 - **Data Transformation**: Cleans and formats the fetched data to remove duplicates.
 - **Data Loading**: Creates a PostgreSQL table (if it doesn’t exist) and inserts the cleaned data.
+
+## Architecture
+
+
+![Screenshot 1](screenshots/screenshot1.png)
